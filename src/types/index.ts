@@ -29,6 +29,10 @@ export interface Goal {
   approvalStatus?: ApprovalStatus;
   evaluationMode?: "higher-is-better" | "lower-is-better" | "zero-based" | "timeline";
   actualAchievement?: number;
+  sharedSourceGoalId?: string;
+  sharedEditMode?: "weightage-only" | "full";
+  managerId?: string;
+  sharedWith?: string[];
 }
 
 export interface GoalUpdate {
@@ -45,11 +49,13 @@ export type CheckInStatus = "Not Started" | "On Track" | "Completed";
 export interface GoalCheckIn {
   id: string;
   goalId: string;
+  quarterKey?: string;
   actualAchievement: number;
   plannedTarget: number;
   progress: number;
   status: CheckInStatus;
   comments: string;
+  managerComments?: string;
   reviewedBy?: string;
   reviewedAt?: string;
   createdBy: string;

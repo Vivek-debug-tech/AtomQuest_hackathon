@@ -12,20 +12,20 @@ export function StatsCard({
   icon: React.ReactNode;
 }) {
   return (
-    <Card className="border-slate-200/60 bg-white/60 backdrop-blur-sm shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:shadow-[0_12px_32px_rgba(15,23,42,0.12)] hover:border-slate-300 transition-all duration-300">
-      <CardContent className="flex flex-col gap-4 p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
-            <p className="text-4xl font-bold tracking-tight text-slate-950">{value}</p>
+    <Card className="relative overflow-hidden border-white/70 bg-white/78 shadow-[0_22px_60px_rgba(15,23,42,0.08)]">
+      <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-blue-200/30 blur-3xl" />
+      <CardContent className="relative flex h-full flex-col gap-5 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
+            <p className="font-heading text-4xl font-semibold tracking-tight text-slate-950">{value}</p>
           </div>
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-sm">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#eff6ff_0%,#dbeafe_100%)] text-blue-700 shadow-[0_16px_34px_rgba(59,130,246,0.12)]">
             {icon}
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <p className="text-xs font-medium text-emerald-700">{change}</p>
+        <div className="rounded-[20px] border border-white/80 bg-slate-950/95 px-4 py-3 text-sm text-slate-100 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
+          <span className="text-slate-300">Signal:</span> {change}
         </div>
       </CardContent>
     </Card>

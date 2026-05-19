@@ -79,6 +79,15 @@ export const toastNotifications = {
   },
 
   /**
+   * Generic Success Toast
+   */
+  success: (message: string, description?: string) => {
+    toast.success(message, {
+      description,
+    });
+  },
+
+  /**
    * Generic Loading Toast (returns ID for manual dismiss)
    */
   loading: (message: string, description?: string) => {

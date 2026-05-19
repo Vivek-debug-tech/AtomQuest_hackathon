@@ -22,7 +22,7 @@ function LoaderShell({ className, children }: React.PropsWithChildren<LoaderProp
   return (
     <div
       className={cn(
-        "rounded-3xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.05)]",
+        "glass-panel rounded-[30px] border border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.08)]",
         className,
       )}
     >
@@ -37,11 +37,11 @@ export function CardLoader({ className }: LoaderProps) {
       <Card className="border-0 bg-transparent shadow-none">
         <CardContent className="flex items-center justify-between gap-4 p-5 sm:p-6">
           <div className="min-w-0 flex-1 space-y-3">
-            <Skeleton className="h-3 w-24 bg-slate-200/90" />
-            <Skeleton className="h-8 w-20 bg-slate-200/90" />
-            <Skeleton className="h-3 w-32 bg-slate-200/90" />
+            <Skeleton className="h-3 w-24 bg-slate-200/80" />
+            <Skeleton className="h-8 w-20 bg-slate-200/80" />
+            <Skeleton className="h-3 w-32 bg-slate-200/80" />
           </div>
-          <Skeleton className="h-12 w-12 shrink-0 rounded-2xl bg-slate-200/90" />
+          <Skeleton className="h-12 w-12 shrink-0 rounded-2xl bg-slate-200/80" />
         </CardContent>
       </Card>
     </LoaderShell>

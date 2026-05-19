@@ -1,37 +1,40 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, BarChart3, CalendarCheck2, CheckCircle2, Download, ShieldCheck, Users } from "lucide-react";
 
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { PageTitle } from "@/components/shared/PageTitle";
-import { AnimatedNumber } from "@/components/shared/AnimatedNumber";
 import { TeamOverview } from "@/components/manager/TeamOverview";
 import { ApprovalTable } from "@/components/manager/ApprovalTable";
 import { FeedbackDialog } from "@/components/manager/FeedbackDialog";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useWorkflowSnapshot } from "@/hooks/useWorkflowSnapshot";
+import { AnimatedNumber } from "@/components/shared/AnimatedNumber";
 import { ChartLoader } from "@/components/shared/loading-skeletons";
+import { PageTitle } from "@/components/shared/PageTitle";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { mockApprovals, mockAuditLogs, mockCheckIns, mockGoals, mockMetrics, mockTeam } from "@/data/mockData";
-import { mutateGoalLockState } from "@/lib/goal-lock-client";
-import type { Approval, Goal } from "@/types";
+import { mockMetrics, mockTeam } from "@/data/mockData";
 import { toastNotifications } from "@/lib/toast-notifications";
+import type { Approval, Goal } from "@/types";
 
-const TeamPerformanceCharts = dynamic(() => import("@/components/manager/TeamPerformanceCharts").then((mod) => mod.TeamPerformanceCharts), {
-  ssr: false,
-  loading: () => <ChartLoader />,
-});
+const TeamPerformanceCharts = dynamic(
+  () => import("@/components/manager/TeamPerformanceCharts").then((mod) => mod.TeamPerformanceCharts),
+  {
+    ssr: false,
+    loading: () => <ChartLoader />,
+  },
+);
 
 type ApprovalRow = Approval & { goal?: Goal };
 
 function formatShortDate(value?: string) {
-  if (!value) return "—";
+  if (!value) return "-";
   try {
     return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
@@ -40,113 +43,90 @@ function formatShortDate(value?: string) {
 }
 
 export default function ManagerDashboardPage() {
-  const [goals, setGoals] = useState<Goal[]>(mockGoals.map((goal) => ({ ...goal })));
+  const { snapshot, reload } = useWorkflowSnapshot();
+  const [goals, setGoals] = useState<Goal[]>(snapshot.goals.map((goal) => ({ ...goal })));
   const [approvals, setApprovals] = useState<ApprovalRow[]>(
-    mockApprovals.map((approval) => ({ ...approval, goal: goals.find((goal) => goal.id === approval.goalId) })),
+    snapshot.approvals.map((approval) => ({
+      ...approval,
+      goal: snapshot.goals.find((goal) => goal.id === approval.goalId),
+    })),
   );
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
 
+  useEffect(() => {
+    setGoals(snapshot.goals.map((goal) => ({ ...goal })));
+    setApprovals(
+      snapshot.approvals.map((approval) => ({
+        ...approval,
+        goal: snapshot.goals.find((goal) => goal.id === approval.goalId),
+      })),
+    );
+  }, [snapshot]);
+
   const pendingCount = approvals.filter((approval) => approval.status === "Pending").length;
   const completedGoals = goals.filter((goal) => goal.status === "Completed").length;
   const averageCompletion = Math.round(goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length);
-
-  const teamCompletion = useMemo(() => mockTeam.reduce((sum, member) => sum + member.completionRate, 0) / mockTeam.length, []);
+  const teamCompletion = useMemo(
+    () => mockTeam.reduce((sum, member) => sum + member.completionRate, 0) / mockTeam.length,
+    [],
+  );
 
   const openFeedback = (approvalId: string) => {
     setSelectedApprovalId(approvalId);
     setFeedbackOpen(true);
   };
 
-  const patchApproval = (approvalId: string, status: Approval["status"], comments?: string) => {
-    const selectedApproval = approvals.find((approval) => approval.id === approvalId);
-    const goalId = selectedApproval?.goalId;
-
-    setApprovals((current) =>
-      current.map((approval) => {
-        if (approval.id !== approvalId) return approval;
-
-        const goal = goals.find((item) => item.id === approval.goalId);
-        return {
-          ...approval,
-          status,
-          comments: comments || approval.comments,
-          respondedAt: new Date().toISOString(),
-          approverId: "mgr-001",
-          goal: goal
-            ? {
-                ...goal,
-                approvalStatus: status,
-                isLocked: status === "Approved",
-                lastUpdated: new Date().toISOString().slice(0, 10),
-              }
-            : undefined,
-        };
+  const patchApproval = async (approvalId: string, status: Approval["status"], comments?: string) => {
+    const response = await fetch(`/api/approvals/${approvalId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: status === "Approved" ? "approve" : status === "Rejected" ? "reject" : "return",
+        comments,
       }),
-    );
+    });
 
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? {
-              ...goal,
-              approvalStatus: status,
-              isLocked: status === "Approved",
-              status: status === "Approved" ? "On Track" : goal.status,
-              lastUpdated: new Date().toISOString().slice(0, 10),
-            }
-          : goal,
-      ),
-    );
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      toastNotifications.error("Approval update failed", body?.error);
+      return;
+    }
 
-    if (selectedApproval && status === "Approved" && goalId) {
-      void mutateGoalLockState(goalId, {
-        action: "lock",
-        performedById: "mgr-001",
-        performedByName: "Manager Lee",
-        reason: "Locked automatically after manager approval",
-      }).catch((error) => {
-        console.error("Failed to persist goal lock", error);
-      });
-
+    if (status === "Approved") {
       toastNotifications.goalApproved();
     }
+    if (status === "Rejected") {
+      toastNotifications.goalRejected();
+    }
+    void reload();
   };
 
-  const handleUpdateGoal = (goalId: string, updates: { target?: string; weightage?: number }) => {
-    setGoals((current) =>
-      current.map((goal) => {
-        if (goal.id !== goalId) return goal;
-        return {
-          ...goal,
-          target: updates.target ?? goal.target,
-          weightage: updates.weightage ?? goal.weightage,
-          lastUpdated: new Date().toISOString().slice(0, 10),
-        };
-      }),
-    );
+  const handleUpdateGoal = async (goalId: string, updates: { target?: string; weightage?: number }) => {
+    const approval = approvals.find((item) => item.goalId === goalId);
+    if (!approval) return;
 
-    // Update the approval to reflect goal changes
-    setApprovals((current) =>
-      current.map((approval) => {
-        if (approval.goalId !== goalId) return approval;
-        const updatedGoal = goals.find((g) => g.id === goalId);
-        return {
-          ...approval,
-          goal: updatedGoal
-            ? {
-                ...updatedGoal,
-                target: updates.target ?? updatedGoal.target,
-                weightage: updates.weightage ?? updatedGoal.weightage,
-              }
-            : approval.goal,
-        };
+    const response = await fetch(`/api/approvals/${approval.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "return",
+        comments: "Goal updated during manager review",
+        ...updates,
       }),
-    );
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      toastNotifications.error("Goal update failed", body?.error);
+      return;
+    }
+
+    toastNotifications.success("Goal updated in review.");
+    void reload();
   };
 
   const currentApproval = approvals.find((approval) => approval.id === selectedApprovalId);
-
   const recentApprovals = approvals.filter((approval) => approval.status !== "Pending").slice(0, 3);
 
   return (
@@ -166,7 +146,9 @@ export default function ManagerDashboardPage() {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-slate-500">Pending Approvals</p>
-              <p className="mt-1 text-3xl font-semibold text-slate-950"><AnimatedNumber value={pendingCount} /></p>
+              <p className="mt-1 text-3xl font-semibold text-slate-950">
+                <AnimatedNumber value={pendingCount} />
+              </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
               <CalendarCheck2 className="h-5 w-5" />
@@ -177,7 +159,9 @@ export default function ManagerDashboardPage() {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-slate-500">Team Completion</p>
-              <p className="mt-1 text-3xl font-semibold text-slate-950"><AnimatedNumber value={Math.round(teamCompletion)} suffix="%" /></p>
+              <p className="mt-1 text-3xl font-semibold text-slate-950">
+                <AnimatedNumber value={Math.round(teamCompletion)} suffix="%" />
+              </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
               <Users className="h-5 w-5" />
@@ -188,7 +172,9 @@ export default function ManagerDashboardPage() {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-slate-500">Completed Goals</p>
-              <p className="mt-1 text-3xl font-semibold text-slate-950"><AnimatedNumber value={completedGoals} /></p>
+              <p className="mt-1 text-3xl font-semibold text-slate-950">
+                <AnimatedNumber value={completedGoals} />
+              </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
               <CheckCircle2 className="h-5 w-5" />
@@ -199,7 +185,9 @@ export default function ManagerDashboardPage() {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-slate-500">Average Progress</p>
-              <p className="mt-1 text-3xl font-semibold text-slate-950"><AnimatedNumber value={averageCompletion} suffix="%" /></p>
+              <p className="mt-1 text-3xl font-semibold text-slate-950">
+                <AnimatedNumber value={averageCompletion} suffix="%" />
+              </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
               <BarChart3 className="h-5 w-5" />
@@ -209,16 +197,14 @@ export default function ManagerDashboardPage() {
       </section>
 
       <TeamOverview metrics={mockMetrics} team={mockTeam} />
-
       <TeamPerformanceCharts />
 
       <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <ApprovalTable
           approvals={approvals}
-          onApprove={(id) => patchApproval(id, "Approved", "Approved from manager dashboard")}
+          onApprove={(id) => void patchApproval(id, "Approved", "Approved from manager dashboard")}
           onReject={(id) => {
-            patchApproval(id, "Rejected", "Rejected after review");
-            toastNotifications.goalRejected();
+            void patchApproval(id, "Rejected", "Rejected after review");
           }}
           onReturn={openFeedback}
           onUpdateGoal={handleUpdateGoal}
@@ -258,14 +244,24 @@ export default function ManagerDashboardPage() {
               <CardTitle>Recent Submissions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockCheckIns.slice(0, 4).map((checkIn) => (
+              {snapshot.checkIns.slice(0, 4).map((checkIn) => (
                 <div key={checkIn.id} className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-slate-950">{checkIn.comments}</p>
-                      <p className="text-xs text-slate-500">Submitted by {checkIn.createdBy} · {formatShortDate(checkIn.createdAt)}</p>
+                      <p className="text-xs text-slate-500">
+                        Submitted by {checkIn.createdBy} | {formatShortDate(checkIn.createdAt)}
+                      </p>
                     </div>
-                    <StatusBadge status={checkIn.status === "Completed" ? "Completed" : checkIn.status === "On Track" ? "On Track" : "Not Started"} />
+                    <StatusBadge
+                      status={
+                        checkIn.status === "Completed"
+                          ? "Completed"
+                          : checkIn.status === "On Track"
+                            ? "On Track"
+                            : "Not Started"
+                      }
+                    />
                   </div>
                 </div>
               ))}
@@ -329,15 +325,25 @@ export default function ManagerDashboardPage() {
               <div key={approval.id} className="rounded-2xl bg-slate-50 p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-slate-950">{approval.goal?.title || approval.goalId}</p>
-                  <StatusBadge status={approval.status === "Approved" ? "Completed" : approval.status === "Rejected" ? "At Risk" : "On Track"} />
+                  <StatusBadge
+                    status={
+                      approval.status === "Approved"
+                        ? "Completed"
+                        : approval.status === "Rejected"
+                          ? "At Risk"
+                          : "On Track"
+                    }
+                  />
                 </div>
                 <p className="mt-2 text-sm text-slate-500">{approval.comments}</p>
               </div>
             ))}
-            {mockAuditLogs.slice(0, 2).map((log) => (
+            {snapshot.auditLogs.slice(0, 2).map((log) => (
               <div key={log.id} className="rounded-2xl border border-slate-100 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-slate-950">{log.action.toUpperCase()} · {log.entityType}</p>
+                  <p className="text-sm font-medium text-slate-950">
+                    {log.action.toUpperCase()} | {log.entityType}
+                  </p>
                   <Badge variant="outline">{formatShortDate(log.timestamp)}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Performed by {log.performedByRole || "System"}</p>
@@ -354,7 +360,7 @@ export default function ManagerDashboardPage() {
         description={currentApproval?.goal?.title || "Add structured feedback to help the employee revise the goal."}
         onSubmit={(message) => {
           if (!selectedApprovalId) return;
-          patchApproval(selectedApprovalId, "Pending", message);
+          void patchApproval(selectedApprovalId, "Pending", message);
           setSelectedApprovalId(null);
         }}
       />
@@ -366,7 +372,9 @@ export default function ManagerDashboardPage() {
               <ShieldCheck className="h-4 w-4 text-blue-600" />
               Goals are locked after approval
             </p>
-            <p className="mt-1 text-sm text-slate-500">Approved goals are marked read-only for employees and can only be changed by managers or admins.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Approved goals are marked read-only for employees and can only be changed by managers or admins.
+            </p>
           </div>
           <Button asChild>
             <Link href="/analytics">

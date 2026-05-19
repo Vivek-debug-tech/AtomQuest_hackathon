@@ -66,7 +66,6 @@ export function CheckinReview({
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {/* Achievement Summary */}
         <div className="grid gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-3">
           <div>
             <p className="text-xs text-slate-600">Planned Target</p>
@@ -82,27 +81,21 @@ export function CheckinReview({
           </div>
         </div>
 
-        {/* Progress Visualization */}
         <div>
           <div className="mb-2 flex items-center justify-between text-xs font-medium">
             <span className="text-slate-700">Achievement Progress</span>
             <span className="text-slate-600">{checkin.progress}%</span>
           </div>
-          <Progress
-            value={checkin.progress}
-            className="h-3"
-          />
+          <Progress value={checkin.progress} className="h-3" />
         </div>
 
-        {/* Employee Comments */}
-        {checkin.comments && (
+        {checkin.comments ? (
           <div className="rounded-lg border-l-4 border-blue-200 bg-blue-50 p-4">
-            <p className="text-xs font-semibold text-blue-900 mb-2">Employee&apos;s Quarterly Comments</p>
-            <p className="text-sm text-blue-800 leading-relaxed">{checkin.comments}</p>
+            <p className="mb-2 text-xs font-semibold text-blue-900">Employee&apos;s Quarterly Comments</p>
+            <p className="text-sm leading-relaxed text-blue-800">{checkin.comments}</p>
           </div>
-        )}
+        ) : null}
 
-        {/* Manager Feedback Section */}
         <div className="space-y-3 border-t border-slate-200 pt-4">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-slate-600" />
@@ -123,7 +116,7 @@ export function CheckinReview({
             <div className="space-y-3 rounded-lg bg-slate-50 p-4">
               <Textarea
                 value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                onChange={(event) => setFeedback(event.target.value)}
                 placeholder="Share structured feedback on the check-in, progress assessment, next steps, or areas for improvement..."
                 className="min-h-28 resize-none border-slate-200 bg-white"
                 autoFocus
@@ -143,11 +136,7 @@ export function CheckinReview({
                   >
                     Cancel
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSubmit}
-                    disabled={!feedback.trim() || isLoading}
-                  >
+                  <Button size="sm" onClick={handleSubmit} disabled={!feedback.trim() || isLoading}>
                     <Send className="mr-2 h-4 w-4" />
                     {isLoading ? "Sending..." : "Send Feedback"}
                   </Button>
@@ -157,11 +146,10 @@ export function CheckinReview({
           )}
         </div>
 
-        {/* Reviewed Badge */}
-        {checkin.reviewedBy && checkin.reviewedAt && (
-          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 border border-emerald-200">
-            <p className="font-medium">✓ Reviewed by {checkin.reviewedBy}</p>
-            <p className="text-xs opacity-75 mt-1">
+        {checkin.reviewedBy && checkin.reviewedAt ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <p className="font-medium">Reviewed by {checkin.reviewedBy}</p>
+            <p className="mt-1 text-xs opacity-75">
               {new Date(checkin.reviewedAt).toLocaleDateString(undefined, {
                 month: "short",
                 day: "numeric",
@@ -169,7 +157,7 @@ export function CheckinReview({
               })}
             </p>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -8,7 +8,7 @@ import { PlusCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { GoalInputRow } from "@/components/forms/GoalInputRow";
 import { createGoalSchema, type GoalFormInput, type GoalFormValues } from "@/lib/validations";
@@ -20,6 +20,7 @@ const defaultValues: GoalFormInput = {
   title: "",
   description: "",
   uomType: "Percentage",
+  evaluationMode: "higher-is-better",
   target: "",
   weightage: 10,
 };
@@ -114,12 +115,12 @@ export function GoalForm({
           </GoalInputRow>
 
           <GoalInputRow label="UoM Type" description="Pick the unit used to measure the goal.">
-            <Select {...form.register("uomType")}>
+            <NativeSelect {...form.register("uomType")}>
               <option value="Percentage">Percentage</option>
               <option value="Count">Count</option>
               <option value="Milestone">Milestone</option>
               <option value="Report">Report</option>
-            </Select>
+            </NativeSelect>
           </GoalInputRow>
 
           <GoalInputRow label="Target" description="Define the measurable target for the period.">

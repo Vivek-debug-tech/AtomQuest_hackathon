@@ -62,6 +62,8 @@ interface DbGoalRow {
   last_updated?: string | null;
   is_locked?: boolean | null;
   approval_status?: string | null;
+  shared_source_goal_id?: string | null;
+  shared_edit_mode?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -98,6 +100,11 @@ function dbRowToGoal(r: DbGoalRow): Goal {
     lastUpdated: r.last_updated ?? r.updated_at ?? r.created_at ?? "",
     isLocked: r.is_locked ?? false,
     approvalStatus: toApprovalStatus(r.approval_status),
+    sharedSourceGoalId: r.shared_source_goal_id ?? undefined,
+    sharedEditMode:
+      r.shared_edit_mode === "weightage-only" || r.shared_edit_mode === "full"
+        ? r.shared_edit_mode
+        : undefined,
   };
 }
 

@@ -1,13 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Users, Lock, FileText, TrendingUp, Download, AlertCircle } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useWorkflowSnapshot } from "@/hooks/useWorkflowSnapshot";
 import { PageTitle } from "@/components/shared/PageTitle";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { AnimatedNumber } from "@/components/shared/AnimatedNumber";
+import { SharedGoalDialog } from "@/components/shared/SharedGoalDialog";
+import { CycleManagementPanel } from "@/components/admin/CycleManagementPanel";
+import { HierarchyManagementPanel } from "@/components/admin/HierarchyManagementPanel";
 import { ManagerPerformanceCards } from "@/components/admin/ManagerPerformanceCards";
 import { UnlockGoalDialog } from "@/components/admin/UnlockGoalDialog";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockGoals, mockAuditLogs, mockTeam } from "@/data/mockData";
+import { useAdminConfig } from "@/hooks/useAdminConfig";
+import { mockTeam } from "@/data/mockData";
 import { downloadCsv } from "@/lib/csv";
 import { mutateGoalLockState } from "@/lib/goal-lock-client";
 import { ChartLoader, TableLoader } from "@/components/shared/loading-skeletons";
@@ -50,18 +55,49 @@ const LazyAuditLogTable = dynamic(
 );
 
 export default function AdminDashboardPage() {
-  const [goals, setGoals] = useState<Goal[]>(mockGoals.map((goal) => ({ ...goal })));
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(mockAuditLogs.map((log) => ({ ...log })));
+  const { snapshot, reload } = useWorkflowSnapshot();
+  const { cycles, hierarchy, reload: reloadAdminConfig } = useAdminConfig();
+  const [goals, setGoals] = useState<Goal[]>(snapshot.goals.map((goal) => ({ ...goal })));
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(snapshot.auditLogs.map((log) => ({ ...log })));
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [sharedGoalDialogOpen, setSharedGoalDialogOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+
+  useEffect(() => {
+    setGoals(snapshot.goals.map((goal) => ({ ...goal })));
+    setAuditLogs(snapshot.auditLogs.map((log) => ({ ...log })));
+  }, [snapshot]);
 
   // Calculate stats
   const totalEmployees = mockTeam.length;
   const completedGoals = goals.filter((g) => g.status === "Completed").length;
   const totalGoals = goals.length;
   const completionPercentage = Math.round((completedGoals / totalGoals) * 100);
-  const pendingApprovals = mockTeam.reduce((sum, m) => sum + m.pendingApprovals, 0);
+  const pendingApprovals = snapshot.approvals.filter((approval) => approval.status === "Pending").length;
   const lockedGoals = goals.filter((g) => g.isLocked).length;
+  const managerPerformance = useMemo(
+    () =>
+      [
+        {
+          id: "mgr-001",
+          name: "Manager Lee",
+          role: "Manager" as const,
+          department: "People Operations",
+          goalsAssigned: goals.length,
+          completionRate:
+            snapshot.checkIns.length > 0
+              ? Math.round(
+                  (snapshot.checkIns.filter((checkin) => checkin.reviewedBy).length / snapshot.checkIns.length) * 100,
+                )
+              : 0,
+          pendingApprovals,
+          nextCheckIn: goals[0]?.nextCheckIn ?? new Date().toISOString().slice(0, 10),
+          lastActivity: snapshot.auditLogs[0]?.timestamp ?? new Date().toISOString(),
+          departmentCount: snapshot.team.length,
+        },
+      ],
+    [goals, pendingApprovals, snapshot.auditLogs, snapshot.checkIns, snapshot.team.length],
+  );
 
   // Quarterly completion trend
   const quarterlyData = [
@@ -127,6 +163,7 @@ export default function AdminDashboardPage() {
     });
     setUnlockDialogOpen(false);
     setSelectedGoal(null);
+    void reload();
   };
 
   const openUnlockDialog = (goal: Goal) => {
@@ -250,6 +287,8 @@ export default function AdminDashboardPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="managers">Managers</TabsTrigger>
+          <TabsTrigger value="cycles">Cycles</TabsTrigger>
+          <TabsTrigger value="hierarchy">Hierarchy</TabsTrigger>
           <TabsTrigger value="locked">Locked Goals</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
@@ -344,12 +383,15 @@ export default function AdminDashboardPage() {
 
         {/* Manager Performance Tab */}
         <TabsContent value="managers" className="space-y-6">
-          <ManagerPerformanceCards
-            managers={mockTeam.map((m) => ({
-              ...m,
-              departmentCount: Math.floor(Math.random() * 10) + 3,
-            }))}
-          />
+          <ManagerPerformanceCards managers={managerPerformance} />
+        </TabsContent>
+
+        <TabsContent value="cycles" className="space-y-6">
+          <CycleManagementPanel cycles={cycles} onSaved={reloadAdminConfig} />
+        </TabsContent>
+
+        <TabsContent value="hierarchy" className="space-y-6">
+          <HierarchyManagementPanel hierarchy={hierarchy} onSaved={reloadAdminConfig} />
         </TabsContent>
 
         {/* Locked Goals Tab */}
@@ -363,10 +405,15 @@ export default function AdminDashboardPage() {
                     {lockedGoals} goal(s) are currently locked from employee editing.
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={exportGoalsCsv}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export CSV
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setSharedGoalDialogOpen(true)}>
+                    Push Shared Goal
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportGoalsCsv}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -420,6 +467,26 @@ export default function AdminDashboardPage() {
         onOpenChange={setUnlockDialogOpen}
         goal={selectedGoal}
         onUnlock={handleUnlockGoal}
+      />
+      <SharedGoalDialog
+        open={sharedGoalDialogOpen}
+        onOpenChange={setSharedGoalDialogOpen}
+        goals={goals}
+        team={mockTeam}
+        onSubmit={async (payload) => {
+          const response = await fetch("/api/shared-goals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as { error?: string } | null;
+            toastNotifications.error("Shared goal push failed", body?.error);
+            return;
+          }
+          toastNotifications.success("Shared goal pushed to selected employees.");
+          void reload();
+        }}
       />
     </DashboardLayout>
   );

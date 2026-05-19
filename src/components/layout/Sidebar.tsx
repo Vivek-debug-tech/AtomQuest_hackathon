@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bell,
   BarChart3,
   CalendarCheck2,
+  FolderKanban,
   Home,
   type LucideIcon,
   PlusCircle,
+  ShieldAlert,
   Settings,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -26,14 +30,14 @@ const navigationByRole: Record<UserRole, Array<{ label: string; href: string; ic
   ],
   Manager: [
     { label: "Dashboard", href: "/dashboard/manager", icon: Home },
-    { label: "Approvals", href: "/approvals", icon: CalendarCheck2 },
-    { label: "Check-ins", href: "/checkins", icon: BarChart3 },
+    { label: "Approvals", href: "/approvals", icon: FolderKanban },
+    { label: "Check-ins", href: "/goals/checkins", icon: CalendarCheck2 },
     { label: "Analytics", href: "/analytics", icon: BarChart3 },
     { label: "Settings", href: "/settings", icon: Settings },
   ],
   Admin: [
     { label: "Dashboard", href: "/dashboard/admin", icon: Home },
-    { label: "Approvals", href: "/approvals", icon: CalendarCheck2 },
+    { label: "Approvals", href: "/approvals", icon: FolderKanban },
     { label: "Analytics", href: "/analytics", icon: BarChart3 },
     { label: "Settings", href: "/settings", icon: Settings },
   ],
@@ -58,29 +62,38 @@ export function Sidebar({ open, onClose, role = "Employee" }: { open: boolean; o
       <aside
         aria-label="Primary Navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200/60 bg-white/95 backdrop-blur-lg transition-transform duration-300 ease-out lg:static lg:translate-x-0 overflow-y-auto",
+          "fixed inset-y-0 left-0 z-50 flex w-[18.75rem] flex-col overflow-y-auto border-r border-white/10 bg-[linear-gradient(180deg,rgba(7,15,31,0.96)_0%,rgba(8,18,38,0.92)_55%,rgba(11,29,63,0.9)_100%)] text-white transition-transform duration-300 ease-out lg:static lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200/50 px-5 py-5">
+        <div className="relative flex items-center justify-between gap-3 border-b border-white/10 px-6 py-6">
+          <div className="absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-blue-400/40 to-transparent" />
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-600">GoalFlow</p>
-            <p className="text-xl font-bold tracking-tight text-slate-950">Portal</p>
+            <p className="text-xs font-bold uppercase tracking-[0.34em] text-blue-200">Atomquest</p>
+            <p className="font-heading text-2xl font-semibold tracking-tight text-white">Goal OS</p>
           </div>
           <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose} type="button" aria-label="Close sidebar">
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Info banner */}
-        <div className="mx-3 my-4 rounded-xl bg-gradient-to-br from-blue-50 via-slate-50 to-white border border-blue-100 p-4 shadow-sm">
-          <p className="text-sm font-bold text-slate-900">HRMS Dashboard</p>
-          <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">Centralized people & performance management</p>
+        <div className="mx-4 my-5 rounded-[28px] border border-white/10 bg-white/7 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-100 shadow-[0_12px_30px_rgba(29,78,216,0.18)]">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Executive HRMS Workspace</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-300">Governance, planning, approvals, and quarterly rhythm in one control plane.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-blue-100">
+                <span className="h-2 w-2 rounded-full bg-blue-300" />
+                {role}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <nav className="flex-1 overflow-y-auto px-4 py-2">
           <ul className="space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -92,17 +105,17 @@ export function Sidebar({ open, onClose, role = "Employee" }: { open: boolean; o
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all duration-200",
+                      "group flex items-center gap-3 rounded-[22px] px-4 py-3.5 text-sm font-medium transition-all duration-200",
                       active
-                        ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-200"
-                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-950 hover:shadow-sm",
+                        ? "bg-white text-slate-950 shadow-[0_18px_40px_rgba(15,23,42,0.24)]"
+                        : "text-slate-300 hover:bg-white/8 hover:text-white",
                     )}
                     aria-current={active ? "page" : undefined}
                   >
                     <span
                       className={cn(
-                        "flex h-9 w-9 items-center justify-center rounded-md transition-all duration-200 flex-shrink-0",
-                        active ? "bg-blue-100 text-blue-700" : "text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700",
+                        "flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-200 flex-shrink-0",
+                        active ? "bg-slate-950 text-white" : "bg-white/6 text-slate-200 group-hover:bg-white/10",
                       )}
                     >
                       <Icon className="h-4.5 w-4.5" />
@@ -110,7 +123,7 @@ export function Sidebar({ open, onClose, role = "Employee" }: { open: boolean; o
 
                     <span className="flex-1">{item.label}</span>
 
-                    {active && <div className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
+                    {active && <div className="h-2 w-2 rounded-full bg-blue-500" />}
                   </Link>
                 </li>
               );
@@ -118,17 +131,23 @@ export function Sidebar({ open, onClose, role = "Employee" }: { open: boolean; o
           </ul>
         </nav>
 
-        {/* Footer CTA */}
-        <div className="border-t border-slate-200/50 p-3">
-          <div className="rounded-xl bg-gradient-to-br from-blue-50 to-slate-50 border border-slate-200 p-4 shadow-sm">
-            <p className="text-sm font-bold text-slate-900">Quick Action</p>
-            <p className="mt-1 text-xs text-slate-600">Start a new goal or log activity</p>
-            <Button asChild className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+        <div className="border-t border-white/10 p-4">
+          <div className="rounded-[28px] border border-blue-400/20 bg-gradient-to-br from-blue-500/15 via-blue-400/8 to-cyan-400/10 p-4">
+            <div className="flex items-center gap-2 text-blue-100">
+              <Bell className="h-4 w-4" />
+              <p className="text-sm font-semibold">Quick action</p>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">Create a goal, monitor escalations, or review approval queues without leaving the rail.</p>
+            <Button asChild className="mt-4 w-full bg-white text-slate-950 hover:bg-slate-100">
               <Link href="/goals/create">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Goal
               </Link>
             </Button>
+            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/8 px-3 py-3 text-xs text-slate-200">
+              <ShieldAlert className="h-4 w-4 text-amber-300" />
+              2 escalations need manager attention
+            </div>
           </div>
         </div>
       </aside>

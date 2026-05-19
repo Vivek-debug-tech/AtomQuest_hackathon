@@ -14,8 +14,10 @@ const goalSchemaBase = z.object({
   title: z.string().min(4, "Goal title is required"),
   description: z.string().min(12, "Add a meaningful description"),
   uomType: z.string().min(2, "Select a UoM type"),
+  evaluationMode: z.enum(["higher-is-better", "lower-is-better", "zero-based", "timeline"]),
   target: z.string().min(1, "Target is required"),
   weightage: z.coerce.number().int().min(10, "Minimum weightage per goal is 10").max(100),
+  sharedWith: z.string().optional(),
 });
 
 export function createGoalSchema(existingGoals: Goal[]) {
@@ -49,10 +51,10 @@ export const multiGoalsSchema = z
   })
   .superRefine((data, ctx) => {
     const total = data.goals.reduce((s, g) => s + Number(g.weightage || 0), 0);
-    if (total !== 100) {
+    if (total > 100) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Total weightage across all goals must equal 100",
+        message: "Total weightage across this batch cannot exceed 100",
         path: ["goals"],
       });
     }
